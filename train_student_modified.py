@@ -169,20 +169,20 @@ def main():
     model_s = model_dict[opt.model_s](num_classes=n_cls)
     new_layer = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, stride=1, padding=1)
     
+    initialize.constant_(new_layer.weight, 1)
+    if new_layer.bias is not None:
+        initialize.constant_(new_layer.bias, 1)
     # initialize.kaiming_uniform_(new_layer.weight, nonlinearity='relu')
     # initialize.zeros_(new_layer.bias)
-    initialize.kaiming_normal_(new_layer.weight, mode='fan_out', nonlinearity='relu')
-    if new_layer.bias is not None:
-        initialize.zeros_(new_layer.bias)
 
-    synthetic_input = torch.randn(1, 3, 64, 64)  # Adjust the size based on your input dimension
-    synthetic_target = torch.randn(1, 3, 64, 64)  # Assuming the target has the same shape as output
+    # synthetic_input = torch.randn(1, 3, 64, 64)  # Adjust the size based on your input dimension
+    # synthetic_target = torch.randn(1, 3, 64, 64)  # Assuming the target has the same shape as output
 
-    new_layer_output = new_layer(synthetic_input)
-    loss = (new_layer_output - synthetic_target).pow(2).mean()  # Simple MSE loss
-    loss.backward()
+    # new_layer_output = new_layer(synthetic_input)
+    # loss = (new_layer_output - synthetic_target).pow(2).mean()  # Simple MSE loss
+    # loss.backward()
 
-    print("Gradients for new layer weights:", new_layer.weight.grad)
+    # print("Gradients for new layer weights:", new_layer.weight.grad)
 
 
     data = torch.randn(2, 3, 32, 32)
@@ -330,11 +330,12 @@ def main():
         logger.log_value('train_acc', train_acc, epoch)
         logger.log_value('train_loss', train_loss, epoch)
 
+        print("==> validating...")
         test_acc, tect_acc_top5, test_loss = validate(val_loader, model_s, criterion_cls, opt)
 
-        logger.log_value('test_acc', test_acc, epoch)
-        logger.log_value('test_loss', test_loss, epoch)
-        logger.log_value('test_acc_top5', tect_acc_top5, epoch)
+        logger.log_value('[Student]test_acc', test_acc, epoch)
+        logger.log_value('[Student]test_loss', test_loss, epoch)
+        logger.log_value('[Student]test_acc_top5', tect_acc_top5, epoch)
 
         # save the best model
         if test_acc > best_acc:
@@ -358,6 +359,12 @@ def main():
             }
             save_file = os.path.join(opt.save_folder, 'ckpt_epoch_{epoch}.pth'.format(epoch=epoch))
             torch.save(state, save_file)
+        
+        test_acc_nl, tect_acc_top5_nl, test_loss_nl = validate(val_loader, model_t, criterion_cls, opt, True, new_layer)
+
+        logger.log_value('[New Layer]test_acc', test_acc_nl, epoch)
+        logger.log_value('[New Layer]test_loss', test_loss_nl, epoch)
+        logger.log_value('[New Layer]test_acc_top5', tect_acc_top5_nl, epoch)
 
     # This best accuracy is only for printing purpose.
     # The results reported in the paper/README is from the last epoch. 

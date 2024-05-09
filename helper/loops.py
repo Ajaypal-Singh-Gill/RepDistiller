@@ -94,7 +94,14 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
     top1 = AverageMeter()
     top5 = AverageMeter()
 
+    losses_nl_t = AverageMeter()
+    top1_nl_t = AverageMeter()
+    top5_nl_t = AverageMeter()
+
     end = time.time()
+    initial_weight = new_layer.weight.clone()
+    initial_bias = new_layer.bias.clone()
+
     for idx, data in enumerate(train_loader):
         if opt.distill in ['crd']:
             input, target, index, contrast_idx = data
@@ -116,10 +123,8 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             preact = True
         feat_s, logit_s = model_s(input, is_feat=True, preact=preact)
         logit_new_layer = new_layer(input)
-        activation = nn.ReLU()
-
-        # print(logit_new_layer)
-        feat_t, logit_t = model_t(logit_new_layer, is_feat=True, preact=preact)
+        activation = nn.Relu()
+        feat_t, logit_t = model_t(activation(logit_new_layer), is_feat=True, preact=preact)
 
         for param in model_t.parameters():
           param.requires_grad = False
@@ -200,47 +205,60 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         optimizer.zero_grad()
         loss.backward()
         
-        print("Gradients for new layer weights:", new_layer.weight.grad)
-        print("Gradients for new layer biases:", new_layer.bias.grad)
-        print("Gradient at the first layer of model_s:", next(model_s.parameters()).grad)
-
-        
-        old_weight = new_layer.weight.clone()
-        old_bias = new_layer.bias.clone()
+        # print("Gradients for new layer weights:", new_layer.weight.grad)
+        # print("Gradients for new layer biases:", new_layer.bias.grad)
+        # print("Gradient at the first layer of model_s:", next(model_s.parameters()).grad)
+        # old_weight = new_layer.weight.clone()
+        # old_bias = new_layer.bias.clone()
 
         optimizer.step()
 
-        weight_change = torch.sum(torch.abs(new_layer.weight - old_weight))
-        bias_change = torch.sum(torch.abs(new_layer.bias - old_bias))
-        print("Weight change:", weight_change.item())
-        print("Bias change:", bias_change.item())
+        # weight_change = torch.sum(torch.abs(new_layer.weight - old_weight))
+        # bias_change = torch.sum(torch.abs(new_layer.bias - old_bias))
+        # print("Weight change:", weight_change.item())
+        # print("Bias change:", bias_change.item())
 
         # ===================meters=====================
         batch_time.update(time.time() - end)
         end = time.time()
-
-        # if nonn zero means it is getting feedback from loss function
         
-
         # print info
+        acc1_nl_t, acc5nl_t = accuracy(logit_t, target, topk=(1, 5))
+        losses_nl_t.update(loss.item(), input.size(0))
+        top1_nl_t.update(acc1_nl_t[0], input.size(0))
+        top5_nl_t.update(acc5nl_t[0], input.size(0))
+
         if idx % opt.print_freq == 0:
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                  'St Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                  'St Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                  'St Acc@5 {top5.val:.3f} ({top5.avg:.3f})\t'
+                  'NL+T Loss {losses_nl_t.val:.4f} ({losses_nl_t.avg:.4f})\t'
+                  'NL+T Acc@1 {top1_nl_t.val:.3f} ({top1_nl_t.avg:.3f})\t'
+                  'NL+T Acc@5 {top5_nl_t.val:.3f} ({top5_nl_t.avg:.3f})'.format(
                 epoch, idx, len(train_loader), batch_time=batch_time,
-                data_time=data_time, loss=losses, top1=top1, top5=top5))
-            sys.stdout.flush()
+                data_time=data_time, loss=losses, top1=top1, top5=top5, losses_nl_t=losses_nl_t, 
+                top1_nl_t=top1_nl_t, top5_nl_t=top5_nl_t ))
 
-    print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+
+            weight_change = torch.sum(torch.abs(new_layer.weight - initial_weight)).item()
+            bias_change = torch.sum(torch.abs(new_layer.bias - initial_bias)).item() if initial_bias is not None else 0
+            # print(f'New Layer - Epoch: [{epoch}] - Weight Change: {weight_change}, Bias Change: {bias_change}')
+
+            sys.stdout.flush()
+    
+
+    print(' * St Acc@1 {top1.avg:.3f} St Acc@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
+    print(' * NL+T Acc@1 {top1_nl_t.avg:.3f} NL+T Acc@5 {top5_nl_t.avg:.3f}'
+          .format(top1_nl_t=top1_nl_t, top5_nl_t=top5_nl_t))
 
     return top1.avg, losses.avg
 
 
-def validate(val_loader, model, criterion, opt):
+def validate(val_loader, model, criterion, opt, is_validating_new_layer_and_model_t = False, new_layer = any):
     """validation"""
     batch_time = AverageMeter()
     losses = AverageMeter()
@@ -258,6 +276,9 @@ def validate(val_loader, model, criterion, opt):
             if torch.cuda.is_available():
                 input = input.cuda()
                 target = target.cuda()
+              
+            if is_validating_new_layer_and_model_t:
+                input = new_layer(input)
 
             # compute output
             output = model(input)
@@ -274,6 +295,8 @@ def validate(val_loader, model, criterion, opt):
             end = time.time()
 
             if idx % opt.print_freq == 0:
+                if is_validating_new_layer_and_model_t:
+                  print("NL+T", end=" ")
                 print('Test: [{0}/{1}]\t'
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
@@ -282,6 +305,8 @@ def validate(val_loader, model, criterion, opt):
                        idx, len(val_loader), batch_time=batch_time, loss=losses,
                        top1=top1, top5=top5))
 
+        if is_validating_new_layer_and_model_t:
+            print("NL+T", end=" ")
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
 
