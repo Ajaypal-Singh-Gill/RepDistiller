@@ -3,6 +3,7 @@ from __future__ import print_function, division
 import sys
 import time
 import torch
+import torch.nn as nn
 
 from .util import AverageMeter, accuracy
 
@@ -85,6 +86,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
     model_s = module_list[0]
     new_layer = module_list[1]
     model_t = module_list[-1]
+    # print(new_layer)
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -114,10 +116,13 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             preact = True
         feat_s, logit_s = model_s(input, is_feat=True, preact=preact)
         logit_new_layer = new_layer(input)
-        with torch.no_grad():
-            # here we have to change the input to this model
-            feat_t, logit_t = model_t(logit_new_layer, is_feat=True, preact=preact)
-            feat_t = [f.detach() for f in feat_t]
+        activation = nn.ReLU()
+
+        # print(logit_new_layer)
+        feat_t, logit_t = model_t(logit_new_layer, is_feat=True, preact=preact)
+
+        for param in model_t.parameters():
+          param.requires_grad = False
 
         # cls + kl div
         loss_cls = criterion_cls(logit_s, target)
@@ -194,11 +199,28 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         # ===================backward=====================
         optimizer.zero_grad()
         loss.backward()
+        
+        print("Gradients for new layer weights:", new_layer.weight.grad)
+        print("Gradients for new layer biases:", new_layer.bias.grad)
+        print("Gradient at the first layer of model_s:", next(model_s.parameters()).grad)
+
+        
+        old_weight = new_layer.weight.clone()
+        old_bias = new_layer.bias.clone()
+
         optimizer.step()
+
+        weight_change = torch.sum(torch.abs(new_layer.weight - old_weight))
+        bias_change = torch.sum(torch.abs(new_layer.bias - old_bias))
+        print("Weight change:", weight_change.item())
+        print("Bias change:", bias_change.item())
 
         # ===================meters=====================
         batch_time.update(time.time() - end)
         end = time.time()
+
+        # if nonn zero means it is getting feedback from loss function
+        
 
         # print info
         if idx % opt.print_freq == 0:

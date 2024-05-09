@@ -14,7 +14,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
-import torch.nn.init as init
+import torch.nn.init as initialize
 
 
 from models import model_dict
@@ -168,7 +168,21 @@ def main():
     model_t = load_teacher(opt.path_t, n_cls)
     model_s = model_dict[opt.model_s](num_classes=n_cls)
     new_layer = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, stride=1, padding=1)
-    # init.constant_(new_layer.weight, 1)
+    
+    # initialize.kaiming_uniform_(new_layer.weight, nonlinearity='relu')
+    # initialize.zeros_(new_layer.bias)
+    initialize.kaiming_normal_(new_layer.weight, mode='fan_out', nonlinearity='relu')
+    if new_layer.bias is not None:
+        initialize.zeros_(new_layer.bias)
+
+    synthetic_input = torch.randn(1, 3, 64, 64)  # Adjust the size based on your input dimension
+    synthetic_target = torch.randn(1, 3, 64, 64)  # Assuming the target has the same shape as output
+
+    new_layer_output = new_layer(synthetic_input)
+    loss = (new_layer_output - synthetic_target).pow(2).mean()  # Simple MSE loss
+    loss.backward()
+
+    print("Gradients for new layer weights:", new_layer.weight.grad)
 
 
     data = torch.randn(2, 3, 32, 32)
@@ -277,11 +291,18 @@ def main():
     criterion_list.append(criterion_kd)     # other knowledge distillation loss
 
     # optimizer
-    print("trainable_list parameters", trainable_list.parameters())
+    # print("trainable_list parameters", trainable_list.parameters())
     optimizer = optim.SGD(trainable_list.parameters(),
                           lr=opt.learning_rate,
                           momentum=opt.momentum,
                           weight_decay=opt.weight_decay)
+
+    # Check parameters in the optimizer
+    # print("Parameters being optimized:")
+    # for param_group in optimizer.param_groups:
+    #     for param in param_group['params']:
+    #         print(param.shape)  # This will print the shape of each parameter tensor being optimized
+
 
     # append teacher after optimizer to avoid weight_decay
     module_list.append(model_t)
