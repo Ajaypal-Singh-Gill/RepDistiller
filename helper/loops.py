@@ -83,6 +83,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
     criterion_kd = criterion_list[2]
 
     model_s = module_list[0]
+    new_layer = module_list[1]
     model_t = module_list[-1]
 
     batch_time = AverageMeter()
@@ -112,8 +113,10 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
         if opt.distill in ['abound']:
             preact = True
         feat_s, logit_s = model_s(input, is_feat=True, preact=preact)
+        logit_new_layer = new_layer(input)
         with torch.no_grad():
-            feat_t, logit_t = model_t(input, is_feat=True, preact=preact)
+            # here we have to change the input to this model
+            feat_t, logit_t = model_t(logit_new_layer, is_feat=True, preact=preact)
             feat_t = [f.detach() for f in feat_t]
 
         # cls + kl div
