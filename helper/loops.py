@@ -99,8 +99,8 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
     top5_nl_t = AverageMeter()
 
     end = time.time()
-    initial_weight = new_layer.weight.clone()
-    initial_bias = new_layer.bias.clone()
+    # initial_weight = new_layer.weight.clone()
+    # initial_bias = new_layer.bias.clone()
 
     for idx, data in enumerate(train_loader):
         if opt.distill in ['crd']:
@@ -123,8 +123,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             preact = True
         feat_s, logit_s = model_s(input, is_feat=True, preact=preact)
         logit_new_layer = new_layer(input)
-        activation = nn.Relu()
-        feat_t, logit_t = model_t(activation(logit_new_layer), is_feat=True, preact=preact)
+        feat_t, logit_t = model_t(logit_new_layer, is_feat=True, preact=preact)
 
         for param in model_t.parameters():
           param.requires_grad = False
@@ -243,8 +242,8 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
                 top1_nl_t=top1_nl_t, top5_nl_t=top5_nl_t ))
 
 
-            weight_change = torch.sum(torch.abs(new_layer.weight - initial_weight)).item()
-            bias_change = torch.sum(torch.abs(new_layer.bias - initial_bias)).item() if initial_bias is not None else 0
+            # weight_change = torch.sum(torch.abs(new_layer.weight - initial_weight)).item()
+            # bias_change = torch.sum(torch.abs(new_layer.bias - initial_bias)).item() if initial_bias is not None else 0
             # print(f'New Layer - Epoch: [{epoch}] - Weight Change: {weight_change}, Bias Change: {bias_change}')
 
             sys.stdout.flush()

@@ -167,11 +167,13 @@ def main():
     # model and new layer
     model_t = load_teacher(opt.path_t, n_cls)
     model_s = model_dict[opt.model_s](num_classes=n_cls)
-    new_layer = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, stride=1, padding=1)
-    
-    initialize.constant_(new_layer.weight, 1)
-    if new_layer.bias is not None:
-        initialize.constant_(new_layer.bias, 1)
+    new_layer = nn.Sequential(
+        nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.Conv2d(in_channels=32, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.BatchNorm2d(3),
+        nn.ReLU()
+    )
+
     # initialize.kaiming_uniform_(new_layer.weight, nonlinearity='relu')
     # initialize.zeros_(new_layer.bias)
 
