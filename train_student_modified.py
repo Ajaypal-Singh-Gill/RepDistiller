@@ -170,18 +170,17 @@ def main():
     new_layer = nn.Sequential(
         nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False),
         nn.BatchNorm2d(32),
-        nn.ReLU(inplace=True),
+        nn.ReLU(),
         nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False),
         nn.BatchNorm2d(64),
-        nn.ReLU(inplace=True),
+        nn.ReLU(),
         nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False),
         nn.BatchNorm2d(128),
-        nn.ReLU(inplace=True),
+        nn.ReLU(),
         nn.Conv2d(in_channels=128, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
         nn.BatchNorm2d(3),
-        nn.ReLU(inplace=True),
+        nn.ReLU(),
         nn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
-        nn.Identity()  # adding an Identity layer to potentially add skip connections later
     )
 
 
@@ -310,7 +309,6 @@ def main():
                           momentum=opt.momentum,
                           weight_decay=opt.weight_decay)
 
-    # Check parameters in the optimizer
     # print("Parameters being optimized:")
     # for param_group in optimizer.param_groups:
     #     for param in param_group['params']:
