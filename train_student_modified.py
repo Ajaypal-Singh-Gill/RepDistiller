@@ -140,6 +140,18 @@ def load_teacher(model_path, n_cls):
     print('==> done')
     return model
 
+def initialize_weights(model):
+    for m in model.modules():
+        if isinstance(m, nn.Conv2d):
+            # Applying Kaiming He initialization to Conv2d layers
+            initialize.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            if m.bias is not None:
+                # Explicitly zeroing out the bias if the bias term is present
+                initialize.constant_(m.bias, 0)
+        elif isinstance(m, nn.BatchNorm2d):
+            # Initializing BatchNorm mean to 0 and variance to 1
+            initialize.constant_(m.weight, 1)
+            initialize.constant_(m.bias, 0)
 
 def main():
     best_acc = 0
@@ -167,21 +179,33 @@ def main():
     # model and new layer
     model_t = load_teacher(opt.path_t, n_cls)
     model_s = model_dict[opt.model_s](num_classes=n_cls)
+    first_layer = list(model_t.children())[0]
+    print(first_layer)
     new_layer = nn.Sequential(
-        nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False),
-        nn.BatchNorm2d(32),
+        nn.Conv2d(in_channels=3, out_channels=256, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.BatchNorm2d(256),
         nn.ReLU(),
-        nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False),
-        nn.BatchNorm2d(64),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.Conv2d(in_channels=256, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False),
         nn.BatchNorm2d(128),
         nn.ReLU(),
-        nn.Conv2d(in_channels=128, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
-        nn.BatchNorm2d(3),
+        nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.BatchNorm2d(64),
         nn.ReLU(),
-        nn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
+        nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False),  # Changed padding to 1
+        nn.BatchNorm2d(32),
+        nn.ReLU(),
+        nn.Conv2d(in_channels=32, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False),  # Changed padding to 1
+        nn.BatchNorm2d(16),
+        nn.ReLU(),
+        nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, stride=1, padding=1, bias=False),  # Changed padding to 1
+        nn.BatchNorm2d(8),
+        nn.ReLU(),
+        nn.Conv2d(in_channels=8, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
     )
+
+
+    initialize_weights(new_layer)
+
 
 
     # initialize.kaiming_uniform_(new_layer.weight, nonlinearity='relu')
