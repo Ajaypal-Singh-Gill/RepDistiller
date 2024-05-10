@@ -153,6 +153,65 @@ def initialize_weights(model):
             initialize.constant_(m.weight, 1)
             initialize.constant_(m.bias, 0)
 
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        
+        self.downsample = None
+        if stride != 1 or in_channels != out_channels:
+            self.downsample = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(out_channels)
+            )
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(identity)
+
+        out += identity
+        out = self.relu(out)
+        return out
+
+
+# Enhanced Model Incorporating Residual Blocks
+class EnhancedModel(nn.Module):
+    def __init__(self):
+        super(EnhancedModel, self).__init__()
+        self.conv_in = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_in = nn.BatchNorm2d(32)
+        self.relu = nn.ReLU(inplace=True)
+        
+        self.resblock1 = ResidualBlock(32, 64)
+        self.resblock2 = ResidualBlock(64, 128)
+        self.conv_out = nn.Conv2d(128, 3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn_out = nn.BatchNorm2d(3)
+        
+    def forward(self, x):
+        x = self.conv_in(x)
+        x = self.bn_in(x)
+        x = self.relu(x)
+        
+        x = self.resblock1(x)
+        x = self.resblock2(x)
+        
+        x = self.conv_out(x)
+        x = self.bn_out(x)
+        x = self.relu(x)
+        return x
+
 def main():
     best_acc = 0
 
@@ -181,30 +240,26 @@ def main():
     model_s = model_dict[opt.model_s](num_classes=n_cls)
     first_layer = list(model_t.children())[0]
     print(first_layer)
-    new_layer = nn.Sequential(
-        nn.Conv2d(in_channels=3, out_channels=256, kernel_size=3, stride=1, padding=1, bias=False),
-        nn.BatchNorm2d(256),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=256, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False),
-        nn.BatchNorm2d(128),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False),
-        nn.BatchNorm2d(64),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False),  # Changed padding to 1
-        nn.BatchNorm2d(32),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=32, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False),  # Changed padding to 1
-        nn.BatchNorm2d(16),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, stride=1, padding=1, bias=False),  # Changed padding to 1
-        nn.BatchNorm2d(8),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=8, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
-    )
+    # new_layer = nn.Sequential(
+    #     nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False),
+    #     nn.BatchNorm2d(32),
+    #     nn.ReLU(),
+    #     nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False),
+    #     nn.BatchNorm2d(64),
+    #     nn.ReLU(),
+    #     nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False),
+    #     nn.BatchNorm2d(128),
+    #     nn.ReLU(),
+    #     nn.Conv2d(in_channels=128, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
+    #     nn.BatchNorm2d(3),
+    #     nn.ReLU(),
+    #     nn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
+    #     nn.Identity()  # adding an Identity layer to potentially add skip connections later
+    # )
+    new_layer = EnhancedModel()
 
 
-    initialize_weights(new_layer)
+    # initialize_weights(new_layer)
 
 
 
