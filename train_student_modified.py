@@ -169,10 +169,21 @@ def main():
     model_s = model_dict[opt.model_s](num_classes=n_cls)
     new_layer = nn.Sequential(
         nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False),
-        nn.Conv2d(in_channels=32, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.BatchNorm2d(32),
+        nn.ReLU(inplace=True),
+        nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.BatchNorm2d(64),
+        nn.ReLU(inplace=True),
+        nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.BatchNorm2d(128),
+        nn.ReLU(inplace=True),
+        nn.Conv2d(in_channels=128, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
         nn.BatchNorm2d(3),
-        nn.ReLU()
+        nn.ReLU(inplace=True),
+        nn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
+        nn.Identity()  # adding an Identity layer to potentially add skip connections later
     )
+
 
     # initialize.kaiming_uniform_(new_layer.weight, nonlinearity='relu')
     # initialize.zeros_(new_layer.bias)

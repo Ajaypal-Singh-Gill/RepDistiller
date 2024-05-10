@@ -123,6 +123,7 @@ def train_distill(epoch, train_loader, module_list, criterion_list, optimizer, o
             preact = True
         feat_s, logit_s = model_s(input, is_feat=True, preact=preact)
         logit_new_layer = new_layer(input)
+        # activation = nn.ReLU()
         feat_t, logit_t = model_t(logit_new_layer, is_feat=True, preact=preact)
 
         for param in model_t.parameters():
