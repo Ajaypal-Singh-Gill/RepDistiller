@@ -256,7 +256,34 @@ def main():
     #     nn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
     #     nn.Identity()  # adding an Identity layer to potentially add skip connections later
     # )
-    new_layer = EnhancedModel()
+
+    # new_layer = EnhancedModel()
+
+    new_layer = nn.Sequential(
+    # First layer remains the same, no dilation here typically to preserve details
+    nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False),
+    nn.BatchNorm2d(32),
+    nn.ReLU(),
+
+    # Add dilation to the second convolutional layer, increasing the receptive field
+    nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=2, dilation=2, bias=False),
+    nn.BatchNorm2d(64),
+    nn.ReLU(),
+
+    # Further increase the dilation in the third convolutional layer
+    nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=4, dilation=4, bias=False),
+    nn.BatchNorm2d(128),
+    nn.ReLU(),
+
+    # Reduce the number of output channels back to 3; keep dilation small or return to 1
+    nn.Conv2d(in_channels=128, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
+    nn.BatchNorm2d(3),
+    nn.ReLU(),
+
+    # Last convolutional layer with a basic 1x1 kernel, no dilation needed here
+    nn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False),
+    nn.Identity()  # Identity layer for potential future use in skip connections
+    )
 
 
     # initialize_weights(new_layer)
